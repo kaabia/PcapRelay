@@ -1,0 +1,10 @@
+[MASTER]
+ext=py
+
+[MESSAGES CONTROL]
+enable=E,W
+disable=C
+ignore=E501
+
+[REPORTS]
+output-format=text

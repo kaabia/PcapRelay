@@ -1,3 +1,38 @@
+'''
+_______________________________________________________________________________#
+
+ File    : pcap_relay.py
+ Author  : Badr Bacem KAABIA
+ Version : 0.1
+ Date    : 22 October 2023
+ Brief   : monitor pcap packets main file
+_______________________________________________________________________________
+
+MIT License
+
+Copyright (c) 2023 Badr Bacem KAABIA
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+_______________________________________________________________________________#
+'''
+from __future__ import absolute_import
 import os
 import sys
 import logging
@@ -33,31 +68,32 @@ class PcapFileHandler(FileSystemEventHandler):
         for pkt in r_packet:
             try:
                 sendp(pkt, iface=interface)
-                logger.debug(f"Sending pkt: <{pkt}> to <{interface}>")
-            except Exception as err:
-                logger.error(f"ERROR occurred while processing packed <{pkt}>: {err}")
+                logger.debug("Sending pkt: <%s> to <%s>", pkt, interface)
+            except RuntimeError as err:
+                logger.error("Error occurred while sending packed <%s> to interface %s", pkt, err)
                 sys.exit(0)
 
     def on_modified(self, event):
         """
         Callback triggered whenever a file system event is occurred
         """
-        if event.is_directory or not event.src_path.endswith(pcap_file) or event.event_type != "modified":
-            return None
+        if event.is_directory or \
+            not event.src_path.endswith(pcap_file) or \
+            event.event_type != "modified":
+            return
+
         try:
             new_packets = rdpcap(event.src_path)
             if(len(new_packets)) > 0:
                 self.new_packets_number = len(new_packets)
-                logger.info(f"{len(new_packets)} packet found in {pcap_file}")
+                logger.info("%d packet found in %s", len(new_packets), pcap_file)
                 if self.new_packets_number > self.old_packets_number:
-                    logger.info(f"New {self.new_packets_number - self.old_packets_number} packets are added")
+                    logger.info("New %d packets are added", self.new_packets_number - self.old_packets_number)
                     self.process_packet(new_packets[self.old_packets_number:])
                     self.old_packets_number = self.new_packets_number
-                    logger.info(f"Total pkt counter = {self.old_packets_number}")
-        except Exception as err:
-            # rdpcap fails when no data could be read! at first event received.
-            # it reflects that the file is created.
-            logger.error(err)
+                    logger.info("Total pkt counter : <%d>", self.old_packets_number)
+        except FileNotFoundError as file_not_found:
+            logger.error("File not found: %s", file_not_found)
 
 if __name__ == "__main__":
     # Create a watchdog observer to monitor the directory containing the pcap file
