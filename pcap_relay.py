@@ -40,17 +40,28 @@ import logging
 from scapy.all import sendp, rdpcap
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from argparse import ArgumentParser
 
 logging.basicConfig(level=logging.DEBUG,
                     filename=os.path.join(os.path.dirname(__file__), "log/pacap_relay.log"),
                     filemode="w",
                     format='[%(levelname)s] %(asctime)s - %(name)s : %(message)s')
 
+parser = ArgumentParser()
 logger = logging.getLogger("PCAP RELAY")
 
-# Define the interface for sending packets to the loop back
-interface = "lo"
-pcap_file = "captured_traffic.pcap"
+parser.add_argument("-i",
+                    "--interface",
+                    help="network interface to forward to",
+                    type=str,
+                    default="lo")
+parser.add_argument("-p",
+                    "--pcap_path",
+                    help="path of the pcap file to monitor",
+                    type=str,
+                    default=os.path.join(os.path.dirname(__file__), "pcap_files", "captured_traffic.pcap"))
+
+args = parser.parse_args()
 
 class PcapFileHandler(FileSystemEventHandler):
     """
@@ -67,10 +78,10 @@ class PcapFileHandler(FileSystemEventHandler):
         """
         for pkt in r_packet:
             try:
-                sendp(pkt, iface=interface)
-                logger.debug("Sending pkt: <%s> to <%s>", pkt, interface)
+                sendp(pkt, iface=args.interface)
+                logger.debug("Sending pkt: <%s> to <%s>", pkt, args.interface)
             except RuntimeError as err:
-                logger.error("Error occurred while sending packed <%s> to interface %s", pkt, err)
+                logger.error("Error occurred while sending packed <%s> to interface %s : %s", pkt, args.interface, err)
                 sys.exit(0)
 
     def on_modified(self, event):
@@ -78,7 +89,7 @@ class PcapFileHandler(FileSystemEventHandler):
         Callback triggered whenever a file system event is occurred
         """
         if event.is_directory or \
-            not event.src_path.endswith(pcap_file) or \
+            not event.src_path.endswith(os.path.basename(args.pcap_path)) or \
             event.event_type != "modified":
             return
 
@@ -86,7 +97,7 @@ class PcapFileHandler(FileSystemEventHandler):
             new_packets = rdpcap(event.src_path)
             if(len(new_packets)) > 0:
                 self.new_packets_number = len(new_packets)
-                logger.info("%d packet found in %s", len(new_packets), pcap_file)
+                logger.info("%d packet found in %s", len(new_packets), os.path.basename(args.pcap_path))
                 if self.new_packets_number > self.old_packets_number:
                     logger.info("New %d packets are added", self.new_packets_number - self.old_packets_number)
                     self.process_packet(new_packets[self.old_packets_number:])
@@ -99,7 +110,7 @@ if __name__ == "__main__":
     # Create a watchdog observer to monitor the directory containing the pcap file
     logger.info(">> PCAP Relay start.. <<")
     observer = Observer()
-    pcap_file_path = os.path.join(os.path.dirname(__file__), "pcap_files")
+    pcap_file_path = os.path.join(os.path.dirname(args.pcap_path))
     observer.schedule(PcapFileHandler(), path=pcap_file_path, recursive=False)
     observer.start()
 
