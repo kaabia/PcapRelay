@@ -1,5 +1,3 @@
-[![license](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
-
 # PcapRelay
 
 PcapRelay is a Python project that listens to a pcap file and sends any received packet to a network interface. It's a handy tool for relaying captured network traffic from a pcap file to a live network interface for further analysis or testing.
