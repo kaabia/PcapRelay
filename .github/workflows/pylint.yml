@@ -22,4 +22,6 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         pylint $(git ls-files '*.py')
-
+    - name: Running robot tests
+      run: |
+        robot $(git ls-files '*.robot')
